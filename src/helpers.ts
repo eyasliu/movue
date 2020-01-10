@@ -90,6 +90,14 @@ export function createStore(store: any): any {
   return store
 }
 
+export function arrayOptionToObj(arr: string[]): {key: string} {
+  return arr.reduce((m, p) => {
+    const key = p.split('.').pop()
+    m[key] = p
+    return m
+  }, {})
+}
+
 /**
 * 获取一个对象指定路径的值
 * 

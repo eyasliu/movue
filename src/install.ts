@@ -1,8 +1,9 @@
 import VueClass from 'vue'
 import * as mobxMethods from 'mobx'
 import ChangeDetector from './change-detector'
-import { createStore, get, getParent } from './helpers'
+import { createStore, get, getParent, arrayOptionToObj } from './helpers'
 import { Getter, Setter, VueComputed, FromMobxEntry, FromMobxAction, IMobxMethods, mapOption } from './types'
+import { MAP_STATE_FIELD, MAP_ACTION_FIELD} from './vuex'
 
 export { IMobxMethods }
 
@@ -31,6 +32,10 @@ export default function install(Vue: typeof VueClass, store: any) {
       this.$store = options.parent.$store
     }
     // inject computed
+    if(vm.$options.computed && vm.$options.computed[MAP_STATE_FIELD]) {
+      vm.$options[MAP_STATE_FIELD] = vm.$options.computed[MAP_STATE_FIELD]
+      delete vm.$options.computed[MAP_STATE_FIELD]
+    }
     vm.$options.computed = getFromStoreEntries(vm).reduce(
       (computed, { key, set }) => {
         changeDetector.defineReactiveProperty(vm, key)
@@ -94,6 +99,7 @@ function createComputedProperty(
 }
 
 function getFromStoreEntries(vm: VueClass): FromMobxEntry[] {
+  // $mapState
   let fromStore = vm.$options.$mapState
   if (vm.$options.mixins) {
     const fromStoreInMixins = vm.$options.mixins
@@ -106,21 +112,26 @@ function getFromStoreEntries(vm: VueClass): FromMobxEntry[] {
   }
 
   if (!fromStore) {
-    return []
+    fromStore = {}
   }
-  const store = vm.$store
 
   // string[]
   if (Array.isArray(fromStore)) {
-    return fromStore.map(val => {
-      const key = val.split('.').pop()
-      return {
-        key,
-        get: () => get(store, val),
-        set: null,
-      }
-    })
+    fromStore = arrayOptionToObj(fromStore)
   }
+  // computed[__$mobxMapState__]
+  // console.log(vm.$options[MAP_STATE_FIELD])
+  if (vm.$options[MAP_STATE_FIELD]) {
+    const computedOpt = vm.$options[MAP_STATE_FIELD]
+    fromStore = {
+      ...fromStore,
+      ...(Array.isArray(computedOpt) ? arrayOptionToObj(computedOpt) : computedOpt),
+    }
+    delete vm.$options[MAP_STATE_FIELD]
+    
+  }
+
+  const store = vm.$store
 
   // object
   return Object.keys(fromStore).map(key => {
@@ -161,34 +172,25 @@ function getFromStoreActions(vm: VueClass): FromMobxAction[] {
   let fromStore = vm.$options.$mapAction
 
   if (!fromStore) {
-    return []
+    fromStore = {}
   }
-
-  const store = vm.$store
 
   // string[]
   if (Array.isArray(fromStore)) {
-    return fromStore.map(field => {
-      const key = field.split('.').pop()
-      let caller = store
-      switch (field.split('.').length) {
-        case 0:
-        case 1:
-          caller = store
-          break;
-        default:
-          const parentField = field.substr(0, field.lastIndexOf('.'))
-          const parent = get(store, parentField)
-          caller = parent
-          break;
-      }
-      const method = get(store, field).bind(caller)
-      return {
-        key,
-        method,
-      }
-    })
+    fromStore = arrayOptionToObj(fromStore)
   }
+
+  // methods
+  const methodOpt = vm.$options.methods && vm.$options.methods[MAP_ACTION_FIELD]
+  if (methodOpt) {
+    fromStore = {
+      ...fromStore,
+      ...(Array.isArray(methodOpt) ? arrayOptionToObj(methodOpt) : methodOpt),
+    }
+    delete vm.$options.methods[MAP_ACTION_FIELD]
+  }
+
+  const store = vm.$store
 
   return Object.keys(fromStore).map(key => {
     const field: any = fromStore[key]

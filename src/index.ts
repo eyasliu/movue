@@ -9,5 +9,7 @@ export default {
 export * from './helpers'
 export * from './install'
 
-export { mapFields as mapState, mapMethods as mapAction } from './helpers'
+export { mapState, mapAction } from './vuex'
+
+// export { mapFields as mapState, mapMethods as mapAction } from './helpers'
 
