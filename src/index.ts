@@ -1,5 +1,6 @@
 import VueClass from 'vue'
-import install, { IMobxMethods } from './install'
+
+import install from './install'
 
 export default {
   install
@@ -7,3 +8,6 @@ export default {
 
 export * from './helpers'
 export * from './install'
+
+export { mapFields as mapState, mapMethods as mapAction } from './helpers'
+

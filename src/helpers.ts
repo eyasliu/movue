@@ -1,3 +1,4 @@
+import {observable} from 'mobx'
 import { Getter, Setter } from './types'
 
 export type PropList<TPropType> = string[] | { [propAlias: string]: TPropType }
@@ -71,12 +72,56 @@ export function mapMethods(store: object, methodNames: PropList<string>): object
 // It's not a good idea to introduce vue-class-component as either dependencies or peerDependencies,
 // So we need to keep this method's logic compatible with vue-class-component's decorator logic.
 // https://github.com/vuejs/vue-class-component/blob/2bc36c50551446972d4b423b2c69f9f6ebf21770/src/util.ts#L17
-export function FromMobx(target: any, key: string) {
-  const Ctor = target.constructor
-  const decorators = Ctor.__decorators__ = Ctor.__decorators__ || []
-  decorators.push(options => {
-    options.fromMobx = options.fromMobx || {}
-    options.fromMobx[key] = options.computed[key]
-    delete options.computed[key]
-  })
+// export function FromMobx(target: any, key: string) {
+//   const Ctor = target.constructor
+//   const decorators = Ctor.__decorators__ = Ctor.__decorators__ || []
+//   decorators.push(options => {
+//     options.fromMobx = options.fromMobx || {}
+//     options.fromMobx[key] = options.computed[key]
+//     delete options.computed[key]
+//   })
+// }
+
+// observable wrap store
+export function createStore(store: any): any {
+  if (store && store.constructor === Object) {
+    store = observable(store)
+  }
+  return store
+}
+
+/**
+* 获取一个对象指定路径的值
+* 
+* @param {object} obj 需要获取的对象
+* @param {string} key 对象的路径
+* @param {any} def 如果指定路径没有值，返回的默认值
+* 
+* @example 
+* ```
+* get(window, 'location.host', 'default value')
+* ```
+*/
+export const get = (obj, key, def?, p?) => {
+  if (typeof key === 'undefined') return def
+  p = 0;
+  key = key.split ? key.split('.') : key;
+  while (obj && p < key.length) obj = obj[key[p++]];
+  return (obj === undefined || p < key.length) ? def : obj;
+}
+
+export const getParent = (store, field) => {
+  let caller = store
+  switch (field.split('.').length) {
+    case 0:
+    case 1:
+      caller = store
+      break;
+    default:
+      const parentField = field.substr(0, field.lastIndexOf('.'))
+      const parent = get(store, parentField)
+      caller = parent
+      break;
+  }
+  return caller
 }

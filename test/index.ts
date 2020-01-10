@@ -5,12 +5,10 @@ import Movue, { mapFields, mapMethods } from '../src'
 const nextTick = Vue.nextTick
 
 test('install well', () => {
-  Vue.use(Movue, { reaction })
+  Vue.use(Movue)
 })
 
 test('bind mobx store to render', done => {
-  Vue.use(Movue, { reaction })
-
   const data = observable({
     foo: 1,
     bar: 2,
@@ -19,8 +17,11 @@ test('bind mobx store to render', done => {
     }
   })
 
+  Vue.use(Movue)
+
   const vm = new Vue({
-    fromMobx: {
+    store: data,
+    $mapState: {
       getterFoo: {
         get() {
           return data.foo
@@ -52,14 +53,14 @@ test('bind mobx store to render', done => {
 })
 
 test(`can use this.data in fromMobx`, done => {
-  Vue.use(Movue, { reaction })
-
   const data = observable({
     foo: 1,
     get fooPlus() {
       return this.foo + 1
     }
   })
+  
+  Vue.use(Movue, data)
 
   const vm = new Vue({
     data() {
@@ -72,7 +73,7 @@ test(`can use this.data in fromMobx`, done => {
         return this.bar + 1
       }
     },
-    fromMobx: {
+    $mapState: {
       foobar() {
         return data.foo + this.bar
       },
@@ -100,8 +101,6 @@ test(`can use this.data in fromMobx`, done => {
 })
 
 test(`can set field to store`, done => {
-  Vue.use(Movue, { reaction })
-
   const data = observable({
     foo: 1,
     get fooPlus() {
@@ -111,6 +110,8 @@ test(`can set field to store`, done => {
       this.foo = value
     }
   })
+
+  Vue.use(Movue, data)
 
   const vm = new Vue({
     data() {
@@ -123,7 +124,7 @@ test(`can set field to store`, done => {
         return this.bar + 1
       }
     },
-    fromMobx: {
+    $mapState: {
       foobar: {
         get() {
           return data.foo + this.bar
@@ -153,11 +154,12 @@ test(`can set field to store`, done => {
 
 
 test(`fields in fromMobx can be used in watch & computed`, done => {
-  Vue.use(Movue, { reaction })
 
   const data = observable({
     foo: 1
   })
+
+  Vue.use(Movue, data)
 
   const onFooChange = jest.fn()
   const onFoobarChange = jest.fn()
@@ -173,7 +175,7 @@ test(`fields in fromMobx can be used in watch & computed`, done => {
         return this.foo + this.bar
       }
     },
-    fromMobx: {
+    $mapState: {
       foo() {
         return data.foo
       }
@@ -226,12 +228,11 @@ class Counter {
 }
 
 test('helper mapFields', () => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue, counter)
 
   const vm = new Vue({
-    fromMobx: {
+    $mapState: {
       ...mapFields(counter, ['num', 'numPlus'])
     },
     render (h) {
@@ -244,12 +245,12 @@ test('helper mapFields', () => {
 })
 
 test('helper mapFields with alias', () => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue, counter)
+
 
   const vm = new Vue({
-    fromMobx: {
+    $mapState: {
       ...mapFields(counter, {
         myNum: 'num',
         myNumPlustOne: 'numPlus'
@@ -265,12 +266,12 @@ test('helper mapFields with alias', () => {
 })
 
 test('helper mapFields can work object notation', () => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue, counter)
+
 
   const vm = new Vue({
-    fromMobx: {
+    $mapState: {
       ...mapFields(counter, {
         myNum: { get: 'num', set: 'setNum' },
         myNumPlustOne: { get: 'numPlus' }
@@ -286,16 +287,15 @@ test('helper mapFields can work object notation', () => {
 })
 
 test('helper mapFields can work with setter', done => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue)
+
 
   const vm = new Vue({
-    fromMobx: {
-      ...mapFields(counter, {
-        myNum: { get: 'num', set: 'setNum' },
-        myNumPlustOne: { get: 'numPlus', set(store, value) { store.setNum(value - 1) } }
-      })
+    store: counter,
+    $mapState: {
+      myNum: { get: 'num', set: 'setNum' },
+      myNumPlustOne: { get: 'numPlus', set(value, store) { store.setNum(value - 1) } }
     },
     render (h) {
       const vm: any = this
@@ -308,7 +308,6 @@ test('helper mapFields can work with setter', done => {
   vm.myNum++
   nextTick(() => {
     expect(vm.$el.textContent).toBe('1|2')
-
     vm.myNumPlustOne = 10
     nextTick(() => {
       expect(vm.$el.textContent).toBe('9|10')
@@ -318,28 +317,27 @@ test('helper mapFields can work with setter', done => {
 })
 
 test('helper mapFields can work with this.data in complex getter and setter', done => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue)
+
 
   const vm = new Vue({
+    store: counter,
     data() {
       return {
         a: 2
       }
     },
-    fromMobx: {
-      ...mapFields(counter, {
-        myNum: { get: 'num' },
-        myNumPlusA: {
-          get(store) { return store.num + this.a; },
-          set(store, value) { store.setNum(value - this.a) }
-        },
-        myNumPlustOne: {
-          get: 'numPlus',
-          set(store, value) { store.setNum(value - 1) }
-        }
-      })
+    $mapState: {
+      myNum: { get: 'num' },
+      myNumPlusA: {
+        get(store) { return store.num + this.a; },
+        set(value, store) { store.setNum(value - this.a) }
+      },
+      myNumPlustOne: {
+        get: 'numPlus',
+        set(value, store) { store.setNum(value - 1) }
+      }
     },
     render (h) {
       const vm: any = this
@@ -362,9 +360,9 @@ test('helper mapFields can work with this.data in complex getter and setter', do
 })
 
 test('helper mapMethods', () => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+  Vue.use(Movue, counter)
+
 
   const vm = new Vue({
     methods: {
@@ -389,9 +387,9 @@ test('helper mapMethods', () => {
 })
 
 test('helper mapMethods with alias', () => {
-  Vue.use(Movue, { reaction })
-
   const counter = new Counter()
+
+  Vue.use(Movue, counter)
 
   const vm = new Vue({
     methods: {
@@ -419,14 +417,14 @@ test('helper mapMethods with alias', () => {
 })
 
 test('clean watchers before destroy', () => {
-  Vue.use(Movue, { reaction })
-
   const data = observable({
     foo: 1
   })
 
+  Vue.use(Movue, data)
+
   const vm = new Vue({
-    fromMobx: {
+    $mapState: {
       foo() {
         return data.foo
       }
@@ -455,14 +453,14 @@ test('normal components destroy well', () => {
 })
 
 test('fromMobx attributes pulled from mixin', () => {
-  Vue.use(Movue)
-
   const data = observable({
     foo: 1
   })
 
+  Vue.use(Movue, data)
+  
   const mixin = {
-    fromMobx: {
+    $mapState: {
       foo () {
         return data.foo
       }
@@ -488,14 +486,15 @@ test('fromMobx attributes pulled from mixin', () => {
 })
 
 test('fromMobx attributes pulled from mixins', () => {
-  Vue.use(Movue)
 
   const data = observable({
     foo: 1
   })
 
+  Vue.use(Movue, data)
+
   const mixin1 = {
-    fromMobx: {
+    $mapState: {
       foo () {
         return data.foo
       },
@@ -506,7 +505,7 @@ test('fromMobx attributes pulled from mixins', () => {
   }
 
   const mixin2 = {
-    fromMobx: {
+    $mapState: {
       fooPlus () {
         return data.foo + 1
       },
@@ -517,6 +516,7 @@ test('fromMobx attributes pulled from mixins', () => {
   }
 
   const vm = new Vue({
+    store: data,
     mixins: [mixin1, mixin2],
     render (h) {
       const vm: any = this
