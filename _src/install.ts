@@ -127,7 +127,7 @@ function getFromStoreEntries(vm: VueClass): FromMobxEntry[] {
       ...fromStore,
       ...(Array.isArray(computedOpt) ? arrayOptionToObj(computedOpt) : computedOpt),
     }
-    delete vm.$options[MAP_STATE_FIELD]
+    // delete vm.$options[MAP_STATE_FIELD]
     
   }
 
@@ -187,7 +187,7 @@ function getFromStoreActions(vm: VueClass): FromMobxAction[] {
       ...fromStore,
       ...(Array.isArray(methodOpt) ? arrayOptionToObj(methodOpt) : methodOpt),
     }
-    delete vm.$options.methods[MAP_ACTION_FIELD]
+    // delete vm.$options.methods[MAP_ACTION_FIELD]
   }
 
   const store = vm.$store
